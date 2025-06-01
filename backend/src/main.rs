@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     // which will cause that the Result<()> never will be returned to the main function
     // Ok(axum::serve(listener, app).await.unwrap()) 
 
-    // handle serve errors manually:
+    // handling serve errors manually
     match axum::serve(listener, app).await {
         Ok(()) => (),
         Err(err) => {
