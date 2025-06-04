@@ -1,28 +1,32 @@
 use axum::{Router, routing::get};
 use axum_error::Result;
-use std::{net::SocketAddr};
+use sqlx::SqlitePool;
+use tokio::net::TcpListener;
+use tower_http::cors::CorsLayer;
+use std::{net::SocketAddr, path::PathBuf};
 
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let dotenv = dotenv::dotenv();
-    let url = std::env::var("DATABASE_URL")?;
+    let url: String = std::env::var("DATABASE_URL")?;
+    let pool  = SqlitePool::connect(&url).await?; // the ? prevent returning "Error"
 
     match dotenv {
         Ok(dotenv) => println!(".env successfully loaded"),
         Err(dotenv) => println!("Could not find .env")
     }
 
-    let app = Router::new().route("/", get(index)).fallback(index);
+    let app: Router = Router::new().route("/", get(index)).fallback(index).with_state(pool).layer(CorsLayer::very_permissive());
 
     let address: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8000));
-    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    let listener: TcpListener = tokio::net::TcpListener::bind(address).await.unwrap();
     
     // if await.unwrap() fails, it will panic and return Err(e), and the Ok() wrapper will never be reached
     // which will cause that the Result<()> never will be returned to the main function
     // Ok(axum::serve(listener, app).await.unwrap()) 
 
-    // handle serve errors manually:
+    // handle serve errors manually
     match axum::serve(listener, app).await {
         Ok(()) => (),
         Err(err) => {
@@ -30,9 +34,12 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     }
+
     Ok(())
 }
 
 async fn index() -> String {
     "Hello, world!".to_string()
 }
+
+
